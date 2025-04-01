@@ -26,23 +26,23 @@ class TransformFusion : public ParamServer
 public:
     std::mutex mtx;
 
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr subImuOdometry;   // 通过imu积分估计的雷达里程计信息订阅器
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr subLaserOdometry; // 最终优化后的里程计信息订阅器
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr subImuOdometry;   // 订阅imu积分估计的雷达里程计信息订阅器（通过imu数据预积分计算得到）
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr subLaserOdometry; // 之前激光雷达最后优化后的里程计信息订阅器（由lio-sam算法优化得到）
 
-    rclcpp::CallbackGroup::SharedPtr callbackGroupImuOdometry;
-    rclcpp::CallbackGroup::SharedPtr callbackGroupLaserOdometry;
+    rclcpp::CallbackGroup::SharedPtr callbackGroupImuOdometry; //imu里程计的回调函数
+    rclcpp::CallbackGroup::SharedPtr callbackGroupLaserOdometry;//激光雷达里程计的回调函数
 
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pubImuOdometry;   // imu里程计信息发布器
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubImuPath;           // imu路径发布器
 
-    Eigen::Isometry3d lidarOdomAffine;
-    Eigen::Isometry3d imuOdomAffineFront;
+    Eigen::Isometry3d lidarOdomAffine; // 存储 刚体变换（包含旋转和平移) ？
+    Eigen::Isometry3d imuOdomAffineFront;  // 存储激光雷达里程计变换矩阵
     Eigen::Isometry3d imuOdomAffineBack;
 
-    std::shared_ptr<tf2_ros::Buffer> tfBuffer;
-    std::shared_ptr<tf2_ros::TransformBroadcaster> tfBroadcaster;
-    std::shared_ptr<tf2_ros::TransformListener> tfListener;
-    tf2::Stamped<tf2::Transform> lidar2Baselink;
+    std::shared_ptr<tf2_ros::Buffer> tfBuffer;// 存储坐标变换数据，可用于查询 某一时刻的坐标变换。
+    std::shared_ptr<tf2_ros::TransformBroadcaster> tfBroadcaster;// 负责 广播 TF 变换，即发布坐标系之间的关系（例如 lidar → base_link）。
+    std::shared_ptr<tf2_ros::TransformListener> tfListener;// 监听并缓存 TF 变换信息，供后续查询使用。
+    tf2::Stamped<tf2::Transform> lidar2Baselink;// 存储 激光雷达坐标系到机器人基座坐标系（base_link）的变换。
 
     double lidarOdomTime = -1;
     deque<nav_msgs::msg::Odometry> imuOdomQueue;
@@ -62,18 +62,18 @@ public:
         auto laserOdomOpt = rclcpp::SubscriptionOptions();
         laserOdomOpt.callback_group = callbackGroupLaserOdometry;
 
-        subLaserOdometry = create_subscription<nav_msgs::msg::Odometry>(
+        subLaserOdometry = create_subscription<nav_msgs::msg::Odometry>( //订阅激光里程计，来自mapOptimization
             "lio_sam/mapping/odometry", qos,
             std::bind(&TransformFusion::lidarOdometryHandler, this, std::placeholders::_1),
             laserOdomOpt);
-        subImuOdometry = create_subscription<nav_msgs::msg::Odometry>(
+        subImuOdometry = create_subscription<nav_msgs::msg::Odometry>(  // 订阅Imu里程计,来自ImuPreintergration
             odomTopic+"_incremental", qos_imu,
             std::bind(&TransformFusion::imuOdometryHandler, this, std::placeholders::_1),
             imuOdomOpt);
 
         // TransformFusion这个类产生的数据没有被其它节点使用，只是单纯的为了rviz显示用，所以这个类可以去掉，不影响最后的建图结果
-        pubImuOdometry = create_publisher<nav_msgs::msg::Odometry>(odomTopic, qos_imu); // 该话题没有被任何其它节点利用
-        pubImuPath = create_publisher<nav_msgs::msg::Path>("lio_sam/imu/path", qos);   // 该话题只为显示用
+        pubImuOdometry = create_publisher<nav_msgs::msg::Odometry>(odomTopic, qos_imu); // 发布imu里程计，用于rviz展示。该话题没有被任何其它节点利用
+        pubImuPath = create_publisher<nav_msgs::msg::Path>("lio_sam/imu/path", qos);   // 发布imu里程计轨迹，该话题只为显示用
 
         tfBroadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(this);
     }
