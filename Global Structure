@@ -1,7 +1,0 @@
-参考：https://zhuanlan.zhihu.com/p/352039509
-
-
-featureExtraction.cpp   # 点云计算曲率，提取特征（角点、平面点）
-imageProjection.cpp     # 激光点云运动畸变校正
-imuPreintegration.cpp   # imu预积分因子图优化，计算每时刻imu里程计
-mapOptmization.cpp      # scan-to-map匹配，因子图优化，闭环优化
