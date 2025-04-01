@@ -20,7 +20,7 @@ using gtsam::symbol_shorthand::X; // Pose3 (x,y,z,r,p,y)
 using gtsam::symbol_shorthand::V; // Vel   (xdot,ydot,zdot)
 using gtsam::symbol_shorthand::B; // Bias  (ax,ay,az,gx,gy,gz)
 
-/* 将最终优化过的里程计信息添加上后面imu里程计增加的里程计信息构成最新的imu里程计信息 */
+/* 将最终优化过的里程计信息添加上后面imu里程计增加的里程计信息构成最新的imu里程计信息 */ 里程计通过测量机器人的运动来提供位姿（位置和姿态）估计信息
 class TransformFusion : public ParamServer
 {
 public:
